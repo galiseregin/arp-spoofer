@@ -1,0 +1,88 @@
+# ARP Spoofer (Lab-Only, Educational)
+
+> **⚠️ Legal & Ethical Notice**
+> This project is for **authorized, lab-only** security research and education. **Do not** run it on networks without **written permission** from the owner. Misuse may violate laws and institutional policies. The authors and maintainers are not responsible for any misuse or damages.
+
+## Overview
+
+This project implements an **ARP spoofer** in Python using **Scapy**. It intercepts traffic between a victim and a gateway and forwards the traffic to its intended destination, simulating a transparent man-in-the-middle (MITM) in a **controlled lab environment**.
+
+### Features
+
+* **ARP Spoofing**: Sends crafted ARP replies to poison victim and gateway ARP caches.
+* **User-Space IP Forwarding**: Forwards intercepted packets with Scapy (kernel IP forwarding should remain disabled).
+* **Cleanup**: Restores correct ARP mappings when the program exits.
+
+### High-Level Architecture
+
+```
+Victim  <——(spoofed ARP)——  Attacker  ——(forwarded traffic)——>  Gateway/Internet
+             ^                     |
+             |——(spoofed ARP)———–—|
+```
+
+## How It Works
+
+1. **Get MAC Addresses**: Queries victim and gateway MAC addresses with ARP requests.
+2. **Spoofing Threads**: Continuously send spoofed ARP replies to both victim and gateway.
+3. **Packet Forwarding**: Sniffs traffic and forwards packets to the correct destination using Scapy.
+4. **Exit & Restore**: On interrupt, restores the original ARP table entries.
+
+## Configuration
+
+In `src/arp_spoofer.py`, update these variables to match your lab network setup:
+
+```python
+# Network interface used for sniffing and sending packets
+_IFACE      = 'enx00e04c360b2d'    # Change to your NIC (e.g., eth0, wlan0)
+
+# Target victim machine
+victim_ip   = "10.1.0.200"
+
+# Gateway (usually your router)
+gateway_ip  = "10.1.0.254"
+
+# Attacker (your machine)
+attack_ip   = "10.1.0.102"
+attack_mac  = "00:e0:4c:36:0b:2d"
+```
+
+* **\_IFACE** → The name of the interface (use `ip addr` or `ifconfig` to list yours).
+* **victim\_ip** → The IP of the machine you want to test with.
+* **gateway\_ip** → The default gateway/router IP.
+* **attack\_ip** → The IP address of your attacking machine.
+* **attack\_mac** → The MAC address of your attacking machine’s NIC.
+
+> These values **must** be changed to match your lab environment. Otherwise, the tool will not function correctly.
+
+## Tests to Validate Behavior
+
+> Run only on isolated test networks or virtual labs.
+
+1. **Intercept Ping (ICMP)**
+
+   * Run `ping` from victim to gateway or beyond.
+   * Capture packets on attacker with Wireshark.
+   * Confirm victim still gets replies normally, but attacker sees the ICMP traffic.
+
+2. **Intercept File Transfer (Unencrypted)**
+
+   * Transfer a plain-text file between victim and another host.
+   * Confirm attacker can observe the file contents in Wireshark while transfer completes successfully.
+
+
+## Usage
+
+Run with root privileges:
+
+```bash
+sudo python3 src/arp_spoofer.py
+```
+
+Ensure kernel IP forwarding is disabled:
+
+```bash
+echo 0 | sudo tee /proc/sys/net/ipv4/ip_forward
+```
+
+
